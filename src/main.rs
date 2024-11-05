@@ -5,6 +5,7 @@
 #![no_main]
 
 use core::panic::PanicInfo;
+mod vga_buf;
 
 // function called in the event of a panic
 
@@ -13,8 +14,6 @@ use core::panic::PanicInfo;
 fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
-
-static HELLO: &[u8] = b"Hello World";
 
 /* entry point for the free-standing binary
 
@@ -26,26 +25,17 @@ static HELLO: &[u8] = b"Hello World";
 */
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    // cast 0xb8000 into a raw byte pointer
-    let vga_buf = 0xb8000 as *mut u8;
-    // a byte to track what to add to the color byte that follows the character
-    let mut text_color: u8 = 0;
-
-    // iterate over every byte in HELLO
-    for (i, &byte) in HELLO.iter().enumerate() {
-        /* place these raw pointer dereferences in an 'unsafe' block as rust normally will not allow
-           a pointer to a "random" point in memory to be dereferenced, the 'unsafe' block lets the
-           compiler know we know what we're doing
-        */
-        unsafe {
-            // assign the vga_buf pointer location to the byte in HELLO
-            *vga_buf.offset(i as isize * 2) = byte;
-            // set the following byte to 0xb (colors the text red)
-            *vga_buf.offset(i as isize * 2 + 1) = 0x9 + text_color;
-            // increment the color so the output is rainbow colored :)
-            text_color = (text_color + 1) % 6;
-        }
-    }
-
+    use core::fmt::Write;
+    vga_buf::WRITER
+        .lock()
+        .write_str("Hello World (from our static VGA BUFF writer)\n")
+        .unwrap();
+    write!(
+        vga_buf::WRITER.lock(),
+        "Test write!(): {} {}",
+        66,
+        1.0 / 3.0
+    )
+    .unwrap();
     loop {}
 }
