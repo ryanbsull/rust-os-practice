@@ -11,7 +11,8 @@ mod vga_buf;
 
 /// return type = ! ("never" type) as it will just loop and never return
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    println!("{}\n", info);
     loop {}
 }
 
