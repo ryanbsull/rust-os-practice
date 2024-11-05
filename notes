@@ -1,0 +1,11 @@
+Linker error workarounds:
+build for target: thumbv7em-none-eabihf (baremetal ARM target*)
+	- *ensures the linker does not assume there is an underlying operating system that will use it
+
+pass linker attributes via `cargo rustc` command:
+	- `cargo rustc -- -C link-arg=-nostartfiles` (LINUX)
+		- Issue occurs because the linker includes the C startup routine by default, also called '_start',
+		which also requires C std lib 'libc' that is not included since we use the attribute '#![no_std]'
+		- No need to specify entry point function as the linker looks for '_start' by default
+		- Makes sure the linker does not look to build our OS as an application for Linux
+	- `cargo rustc -- -C link-args="-e __start -static -nostartfiles"` (MAC OS)

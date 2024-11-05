@@ -1,0 +1,14 @@
+[package]
+name = "os-practice"
+version = "0.1.0"
+edition = "2018"
+authors = ["Ryan Sullivan <ryanbakersullivan@gmail.com>"]
+
+[dependencies]
+
+# Sets panic strategy to abort rather than the typical unwinding Rust does
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
