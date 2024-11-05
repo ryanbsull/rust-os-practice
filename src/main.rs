@@ -25,17 +25,6 @@ fn panic(_info: &PanicInfo) -> ! {
 */
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    use core::fmt::Write;
-    vga_buf::WRITER
-        .lock()
-        .write_str("Hello World (from our static VGA BUFF writer)\n")
-        .unwrap();
-    write!(
-        vga_buf::WRITER.lock(),
-        "Test write!(): {} {}",
-        66,
-        1.0 / 3.0
-    )
-    .unwrap();
+    println!("Hello World{}", '!');
     loop {}
 }

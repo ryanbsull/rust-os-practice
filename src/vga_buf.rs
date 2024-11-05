@@ -24,7 +24,7 @@ pub enum Color {
     LightRed = 0xc,
     Pink = 0xd,
     Yellow = 0xe,
-    Whte = 0xf,
+    White = 0xf,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -70,7 +70,7 @@ struct Buffer {
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         column_pos: 0,
-        color_code: ColorCode::new(Color::LightRed, Color::Black),
+        color_code: ColorCode::new(Color::White, Color::Black),
         buf: unsafe { &mut *(0xb8000 as *mut Buffer) },
     });
 }
@@ -150,18 +150,27 @@ impl fmt::Write for Writer {
     }
 }
 
-pub fn print_something() {
-    // make sure print_something uses core::fmt::Write so the trait
-    // is in scope when calling the write!() macro
-    use core::fmt::Write;
-    let mut writer = Writer {
-        column_pos: 0,
-        color_code: ColorCode::new(Color::LightRed, Color::Black),
-        buf: unsafe { &mut *(0xb8000 as *mut Buffer) },
-    };
+/*
+   define print macros for the entire crate so they can interact
+   with the VGA buffer through those macros instead of using the
+   global interface
+*/
 
-    writer.write_byte(b'H');
-    writer.write_string("iya ");
-    writeln!(writer, "World").unwrap();
-    write!(writer, "Here we are testing write!(): {} {}", 66, 1.0 / 3.0).unwrap();
+#[macro_export]
+macro_rules! print {
+    ($($arg:tt)*) => ($crate::vga_buf::_print(format_args!($($arg)*)));
+}
+
+#[macro_export]
+macro_rules! println {
+    () => ($crate::print!("\n"));
+    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
+}
+
+// use doc(hidden) to hide function from generated documentation
+// as it is a private implementation detail
+#[doc(hidden)]
+pub fn _print(args: fmt::Arguments) {
+    use core::fmt::Write;
+    WRITER.lock().write_fmt(args).unwrap();
 }
