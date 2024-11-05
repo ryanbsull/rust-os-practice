@@ -1,3 +1,4 @@
+// build with `cargo bootimage` to generate the kernel .bin image
 // makes sure std lib is not compiled with the program
 // *needed if we are to make a free-standing binary for the simple OS
 #![no_std]
@@ -13,15 +14,38 @@ fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
 
-// entry point for the free-standing binary
+static HELLO: &[u8] = b"Hello World";
 
-/// requires the "no-mangle" attribute to ensure its name is preserved
-/// as Rust will change function names to ensure no duplicate names
+/* entry point for the free-standing binary
 
-/// 'extern "C"' tells the compiler to use the C calling convention
-/// instead of the Rust calling convention
+    requires the "no-mangle" attribute to ensure its name is preserved
+    as Rust will change function names to ensure no duplicate names
 
+    'extern "C"' tells the compiler to use the C calling convention
+    instead of the Rust calling convention
+*/
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
+    // cast 0xb8000 into a raw byte pointer
+    let vga_buf = 0xb8000 as *mut u8;
+    // a byte to track what to add to the color byte that follows the character
+    let mut text_color: u8 = 0;
+
+    // iterate over every byte in HELLO
+    for (i, &byte) in HELLO.iter().enumerate() {
+        /* place these raw pointer dereferences in an 'unsafe' block as rust normally will not allow
+           a pointer to a "random" point in memory to be dereferenced, the 'unsafe' block lets the
+           compiler know we know what we're doing
+        */
+        unsafe {
+            // assign the vga_buf pointer location to the byte in HELLO
+            *vga_buf.offset(i as isize * 2) = byte;
+            // set the following byte to 0xb (colors the text red)
+            *vga_buf.offset(i as isize * 2 + 1) = 0x9 + text_color;
+            // increment the color so the output is rainbow colored :)
+            text_color = (text_color + 1) % 6;
+        }
+    }
+
     loop {}
 }

@@ -5,4 +5,4 @@ edition = "2018"
 authors = ["Ryan Sullivan <ryanbakersullivan@gmail.com>"]
 
 [dependencies]
-
+bootloader = "0.9"
