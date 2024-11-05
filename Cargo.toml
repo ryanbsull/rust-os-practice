@@ -6,9 +6,3 @@ authors = ["Ryan Sullivan <ryanbakersullivan@gmail.com>"]
 
 [dependencies]
 
-# Sets panic strategy to abort rather than the typical unwinding Rust does
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"

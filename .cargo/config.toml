@@ -1,0 +1,5 @@
+# makes sure the core is recompiled for our custom targets, 
+# otherwise cargo build will only work on standard supported host
+# triples (e.g. x86_64-unknown-linux-gnu)
+[unstable]
+build-std = ["core", "compiler_builtins"]
