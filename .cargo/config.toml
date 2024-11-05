@@ -11,3 +11,9 @@ build-std = ["core", "compiler_builtins"]
 # set default build target
 [build]
 target = "x86_64-os_practice.json"
+
+# calls 'bootimage runnner' on a call to 'cargo run' which will 
+# automatically link the executable to the bootloader and boot it in
+# QEMU
+[target.'cfg(target_os = "none")']
+runner = "bootimage runner"
