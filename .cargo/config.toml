@@ -1,5 +1,13 @@
+[unstable]
+# makes sure standard memory built-ins are compiled with our kernel 
+# so we can avoid having to reimplement with "#[no_mangle]" and risk
+# incorrect implementation
+build-std-features = ["compiler-builtins-mem"]
 # makes sure the core is recompiled for our custom targets, 
 # otherwise cargo build will only work on standard supported host
 # triples (e.g. x86_64-unknown-linux-gnu)
-[unstable]
 build-std = ["core", "compiler_builtins"]
+
+# set default build target
+[build]
+target = "x86_64-os_practice.json"
