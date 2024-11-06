@@ -174,3 +174,30 @@ pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
     WRITER.lock().write_fmt(args).unwrap();
 }
+
+// test println! runs
+#[test_case]
+fn test_println_simple() {
+    println!("test_println_simple output");
+}
+
+// test println! runs many times
+#[test_case]
+fn test_println_many() {
+    for _ in 0..200 {
+        println!("test_println_many output");
+    }
+}
+
+// test that printing is being written to the screen
+#[test_case]
+fn test_println_output() {
+    let s = "test_println_output test string";
+    println!("{}", s);
+    // use enumerate to get both the position in the str: i and the character: c
+    for (i, c) in s.chars().enumerate() {
+        // check line above in buffer as println! will move the string up a row after printing
+        let screen_char = WRITER.lock().buf.chars[BUFFER_HEIGHT - 2][i].read();
+        assert_eq!(char::from(screen_char.ascii_character), c);
+    }
+}
