@@ -31,3 +31,10 @@ uart_16550 = "0.2.0"
 version = "1.0"
 # requires "spin_no_std" since we don't link to the std lib
 features = ["spin_no_std"]
+
+# removes the testing harness for should_panic.rs as only a single test is run
+# it would be simpler then to just run our single test from should_panic's _start
+# function
+[[test]]
+name = "should_panic"
+harness = false
