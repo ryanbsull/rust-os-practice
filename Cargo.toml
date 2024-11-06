@@ -4,12 +4,20 @@ version = "0.1.0"
 edition = "2018"
 authors = ["Ryan Sullivan <ryanbakersullivan@gmail.com>"]
 
+[package.metadata.bootimage]
+# specifies the IO port through which the device can be reached from our kernel: "iobase=0xf4(port_num)"
+# if some value is sent to this port the kernel will exit with code: (value << 1) | 1
+test-args = ["-device", "isa-debug-exit,iobase=0xf4,iosize=0x04"]
+test-success-exit-code = 33 # (0x10 << 1) | 1
+
 [dependencies]
 bootloader = "0.9"
 # allows us to specify VGA buffer writes as volatile so they are not optimized out
 volatile = "0.2.6"
 # needed so our VGA buffer WRITER can be written to as a static variable without being unsafe
 spin = "0.5.2"
+# gives us the Port type to speak to the QEMU port to exit
+x86_64 = "0.14.2"
 
 [dependencies.lazy_static]
 version = "1.0"

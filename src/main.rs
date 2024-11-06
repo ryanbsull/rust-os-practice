@@ -14,6 +14,8 @@ pub fn test_runner(tests: &[&dyn Fn()]) {
     for test in tests {
         test();
     }
+
+    exit_qemu(QEMUExitCode::Success);
 }
 
 #[test_case]
@@ -23,9 +25,27 @@ fn trivial_assertion() {
     println!("[ok]");
 }
 
+// track QEMU exit port value, defined in Cargo.toml
+const QEMU_PORT: u16 = 0xf4;
 use core::panic::PanicInfo;
 mod vga_buf;
 
+// create 32-bit exit code enum for QEMU exit port
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u32)]
+pub enum QEMUExitCode {
+    Success = 0x10,
+    Failure = 0x11,
+}
+
+pub fn exit_qemu(exit_code: QEMUExitCode) {
+    use x86_64::instructions::port::Port;
+
+    unsafe {
+        let mut port = Port::new(QEMU_PORT);
+        port.write(exit_code as u32);
+    }
+}
 // function called in the event of a panic
 
 /// return type = ! ("never" type) as it will just loop and never return
