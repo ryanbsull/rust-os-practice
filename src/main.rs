@@ -10,7 +10,7 @@
 
 #[cfg(test)]
 pub fn test_runner(tests: &[&dyn Fn()]) {
-    println!("Running {} tests", tests.len());
+    serial_println!("Running {} tests", tests.len());
     for test in tests {
         test();
     }
@@ -20,14 +20,15 @@ pub fn test_runner(tests: &[&dyn Fn()]) {
 
 #[test_case]
 fn trivial_assertion() {
-    print!("trivial assertion... ");
+    serial_print!("trivial assertion... ");
     assert_eq!(1, 1);
-    println!("[ok]");
+    serial_println!("[ok]");
 }
 
 // track QEMU exit port value, defined in Cargo.toml
 const QEMU_PORT: u16 = 0xf4;
 use core::panic::PanicInfo;
+mod serial;
 mod vga_buf;
 
 // create 32-bit exit code enum for QEMU exit port
@@ -49,12 +50,24 @@ pub fn exit_qemu(exit_code: QEMUExitCode) {
 // function called in the event of a panic
 
 /// return type = ! ("never" type) as it will just loop and never return
+#[cfg(not(test))] // set this as the panic handler when not testing
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     println!("{}\n", info);
     loop {}
 }
 
+// configure a different panic handler to run while testing, otherwise QEMU
+// will just hang on the original panic handler plus the output will not be
+// visible on the host computer
+#[cfg(test)]
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    serial_println!("[failed]\n");
+    serial_println!("Error: {}\n", info);
+    exit_qemu(QEMUExitCode::Failure);
+    loop {}
+}
 /* entry point for the free-standing binary
 
     requires the "no-mangle" attribute to ensure its name is preserved
