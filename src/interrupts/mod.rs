@@ -1,4 +1,4 @@
-use super::println;
+use crate::*;
 use lazy_static::lazy_static;
 mod idt;
 
@@ -47,8 +47,24 @@ lazy_static! {
     };
 }
 
+// super hack-y way of doing it but will work for the time being until I understand
+// testing harnesses better
+lazy_static! {
+    pub static ref TEST_IDT: idt::Idt = {
+        let mut idt = idt::Idt::new();
+        idt.set_handler(0, zero_div_test_handler);
+        idt
+    };
+}
+
 extern "C" fn zero_div_handler() -> ! {
     println!("EXCEPTION: DIVSION BY ZERO");
+    loop {}
+}
+
+extern "C" fn zero_div_test_handler() -> ! {
+    serial_println!("[ok]");
+    super::exit_qemu(crate::QEMUExitCode::Success);
     loop {}
 }
 
@@ -57,13 +73,11 @@ extern "C" fn ss_int_handler() -> ! {
     /* TODO: IMPLEMENT */
     loop {}
 }
-
 extern "C" fn nmi_handler() -> ! {
     println!("EXCEPTION: NON-MASKABLE INTERRUPT");
     /* TODO: IMPLEMENT */
     loop {}
 }
-
 extern "C" fn breakpt_handler() -> ! {
     println!("EXCEPTION: BREAKPOINT (INT3)");
     /* TODO: IMPLEMENT */
@@ -84,4 +98,8 @@ extern "C" fn bre_handler() -> ! {
 
 pub fn init() {
     IDT.load();
+}
+
+pub fn init_test() {
+    TEST_IDT.load();
 }
