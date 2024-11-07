@@ -6,9 +6,17 @@
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
+extern crate bit_field;
+use core::arch::asm;
 use core::panic::PanicInfo;
+pub mod interrupts;
 pub mod serial;
 pub mod vga_buf;
+
+// need to create a custom divide by zero function since Rust runtime-checker will catch it otherwise
+pub fn divide_by_zero() {
+    unsafe { asm!("mov dx, 0", "div dx",) }
+}
 
 // create 32-bit exit code enum for QEMU exit port
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
