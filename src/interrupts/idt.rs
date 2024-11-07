@@ -1,5 +1,6 @@
 use bit_field::BitField;
 use x86_64::instructions::segmentation;
+use x86_64::registers::segmentation::Segment;
 use x86_64::structures::gdt::SegmentSelector;
 use x86_64::PrivilegeLevel;
 
@@ -114,7 +115,7 @@ impl Idt {
 
     // from phil-opp.com: originally returned &mut EntryOptions but cannot return unaligned field now
     pub fn set_handler(&mut self, entry: u8, handler: HandlerFunc) {
-        self.0[entry as usize] = Entry::new(segmentation::cs(), handler);
+        self.0[entry as usize] = Entry::new(segmentation::CS::get_reg(), handler);
     }
 
     // IDT must be valid until a new IDT is loaded and as long as the kernel runs, thus "'static"
