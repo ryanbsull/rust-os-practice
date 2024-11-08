@@ -42,8 +42,8 @@ impl ColorCode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-// use repr(C) to gurantee struct fields are laid out like C structs and gurantees correct ordering
-// default Rust ordering does not gurantee struct field order
+// use repr(C) to guarantee struct fields are laid out like C structs and guarantees correct ordering
+// default Rust ordering does not guarantee struct field order
 #[repr(C)]
 struct ScreenChar {
     ascii_character: u8,
