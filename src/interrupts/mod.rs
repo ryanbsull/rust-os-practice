@@ -1,4 +1,5 @@
-use crate::*;
+use crate::{println, serial_println};
+use core::arch::asm;
 use lazy_static::lazy_static;
 mod idt;
 
@@ -57,11 +58,58 @@ lazy_static! {
     };
 }
 
+/*
+Exception Stack Frame:
+
+-------- <-- Old stack ptr
+Stack Alignment var
+--------
+Stack Segment (ss)
+--------
+Return Stack Pointer (rsp)
+--------
+RFLAGS (8-byte)
+--------
+Code Segment (cs)
+--------
+Return Instruction Pointer (rip)
+--------
+Error Code (optional)
+-------- <-- New stack ptr
+Handler Function
+Stack frame
+
+*/
+
+#[derive(Debug, Default)]
+// Note: #[repr(C)] guarantees field order is as stated, Rust representation doesn't!!
+#[repr(C, packed)]
+// the fields are ordered in reverse since the stack grows downward
+struct ExceptionStackFrame {
+    instr_ptr: u64,
+    code_seg: u64,
+    rflags: u64,
+    stack_ptr: u64,
+    stack_seg: u64,
+}
+
 extern "C" fn zero_div_handler() -> ! {
-    println!("EXCEPTION: DIVSION BY ZERO");
+    let stack_frame: &ExceptionStackFrame;
+    let mut frame_ptr: usize;
+    unsafe {
+        asm!(
+            "mov {stack_frame}, rsp",
+            stack_frame = out(reg) frame_ptr,
+        );
+
+        let frame_ptr = frame_ptr as *mut ExceptionStackFrame;
+        stack_frame = frame_ptr.as_mut().unwrap();
+    }
+    println!("EXCEPTION: DIVSION BY ZERO\n{:#x?}", stack_frame);
     loop {}
 }
 
+// very hack-y but for now will do for testing functionality
 extern "C" fn zero_div_test_handler() -> ! {
     serial_println!("[ok]");
     super::exit_qemu(crate::QEMUExitCode::Success);
