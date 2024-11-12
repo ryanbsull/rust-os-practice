@@ -1,6 +1,7 @@
 #![no_std]
 // condition attribute no_main on if the tests are running
 #![cfg_attr(test, no_main)]
+#![feature(naked_functions)]
 // custom test frameworks requires no external libraries thus works in a #![no_std] environment
 #![feature(custom_test_frameworks)]
 #![test_runner(crate::test_runner)]

@@ -1,5 +1,5 @@
 use crate::{println, serial_println};
-use core::arch::asm;
+use core::arch::{asm, naked_asm};
 use lazy_static::lazy_static;
 mod idt;
 
@@ -30,7 +30,7 @@ TABLE_IDX    |    INTERRUPT_TYPE
 // list of all the handler functions
 // TODO: make macro to auto populate with all functions in file with "_handler" postfix
 const HANDLER_FUNCS: [extern "C" fn() -> !; 6] = [
-    zero_div_handler,
+    zero_div_wrapper,
     ss_int_handler,
     nmi_handler,
     breakpt_handler,
@@ -93,19 +93,22 @@ struct ExceptionStackFrame {
     stack_seg: u64,
 }
 
-extern "C" fn zero_div_handler() -> ! {
-    let stack_frame: &ExceptionStackFrame;
-    let mut frame_ptr: usize;
+#[naked]
+extern "C" fn zero_div_wrapper() -> ! {
+    // move rsp -> rdi (rdi is an argument register so essentially it passes
+    // the stack pointer as an arg to zero_div_handler)
     unsafe {
-        asm!(
-            "mov {stack_frame}, rsp",
-            stack_frame = out(reg) frame_ptr,
-        );
-
-        let frame_ptr = frame_ptr as *mut ExceptionStackFrame;
-        stack_frame = frame_ptr.as_mut().unwrap();
+        naked_asm!("mov rdi, rsp; call zero_div_handler");
     }
-    println!("EXCEPTION: DIVSION BY ZERO\n{:#x?}", stack_frame);
+}
+
+// since we now need to call from a naked handler function (which only allows for assembly)
+// we need to know the real name of our function since naked_asm prohibits "in(reg)"
+#[no_mangle]
+extern "C" fn zero_div_handler(stack_frame: &ExceptionStackFrame) -> ! {
+    println!("EXCEPTION: DIVSION BY ZERO\n{:#x?}", unsafe {
+        &*stack_frame
+    });
     loop {}
 }
 
