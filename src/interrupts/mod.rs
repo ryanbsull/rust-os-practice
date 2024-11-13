@@ -1,5 +1,5 @@
-use crate::{println, serial_println};
-use core::arch::{asm, naked_asm};
+use crate::println;
+use core::arch::naked_asm;
 use lazy_static::lazy_static;
 mod idt;
 
@@ -27,33 +27,41 @@ TABLE_IDX    |    INTERRUPT_TYPE
   ... IDT for x86 continues but we will only worry about these
 */
 
-// list of all the handler functions
-// TODO: make macro to auto populate with all functions in file with "_handler" postfix
-const HANDLER_FUNCS: [extern "C" fn() -> !; 6] = [
-    zero_div_wrapper,
-    ss_int_handler,
-    nmi_handler,
-    breakpt_handler,
-    overflow_handler,
-    bre_handler,
-];
+// creates a wrapper function to be passed to our set_handler() Idt method
+// takes a function identifier $name (not a string of the name nor ptr to function location!)
+macro_rules! handler {
+    ($name: ident) => {{
+        #[naked]
+        extern "C" fn wrapper() -> ! {
+            unsafe {
+                naked_asm!("mov rdi, rsp; sub rsp, 8; call {}", sym $name);
+            }
+        }
+        wrapper
+    }};
+}
+
+// the same as above but this time it moves the error code into rsi (the
+// second function argument register)
+macro_rules! handler_with_errcode {
+    ($name: ident) => {{
+        #[naked]
+        extern "C" fn wrapper() -> ! {
+            unsafe {
+                naked_asm!("pop rsi; mov rdi, rsp; sub rsp, 8; call {}", sym $name);
+            }
+        }
+        wrapper
+    }};
+}
 
 lazy_static! {
     pub static ref IDT: idt::Idt = {
         let mut idt = idt::Idt::new();
-        for (i, handler) in HANDLER_FUNCS.iter().enumerate() {
-            idt.set_handler(i as u8, *handler);
-        }
-        idt
-    };
-}
-
-// super hack-y way of doing it but will work for the time being until I understand
-// testing harnesses better
-lazy_static! {
-    pub static ref TEST_IDT: idt::Idt = {
-        let mut idt = idt::Idt::new();
-        idt.set_handler(0, zero_div_test_handler);
+        idt.set_handler(0, handler!(zero_div_handler));
+        idt.set_handler(3, handler!(breakpt_handler));
+        idt.set_handler(6, handler!(invalid_op_handler));
+        idt.set_handler(14, handler_with_errcode!(pg_fault_handler));
         idt
     };
 }
@@ -93,64 +101,31 @@ struct ExceptionStackFrame {
     stack_seg: u64,
 }
 
-#[naked]
-extern "C" fn zero_div_wrapper() -> ! {
-    // move rsp -> rdi (rdi is an argument register so essentially it passes
-    // the stack pointer as an arg to zero_div_handler)
-    unsafe {
-        naked_asm!("mov rdi, rsp; call zero_div_handler");
-    }
-}
-
 // since we now need to call from a naked handler function (which only allows for assembly)
 // we need to know the real name of our function since naked_asm prohibits "in(reg)"
-#[no_mangle]
 extern "C" fn zero_div_handler(stack_frame: &ExceptionStackFrame) -> ! {
-    println!("EXCEPTION: DIVSION BY ZERO\n{:#x?}", unsafe {
-        &*stack_frame
-    });
+    println!("EXCEPTION: DIVSION BY ZERO\n{:#x?}", &*stack_frame);
     loop {}
 }
 
-// very hack-y but for now will do for testing functionality
-extern "C" fn zero_div_test_handler() -> ! {
-    serial_println!("[ok]");
-    super::exit_qemu(crate::QEMUExitCode::Success);
+extern "C" fn breakpt_handler(stack_frame: &ExceptionStackFrame) -> ! {
+    println!("EXCEPTION: BREAKPOINT (INT3)\n{:#x?}", &*stack_frame);
     loop {}
 }
 
-extern "C" fn ss_int_handler() -> ! {
-    println!("EXCEPTION: SINGLE STEP INTERRUPT");
-    /* TODO: IMPLEMENT */
-    loop {}
-}
-extern "C" fn nmi_handler() -> ! {
-    println!("EXCEPTION: NON-MASKABLE INTERRUPT");
-    /* TODO: IMPLEMENT */
-    loop {}
-}
-extern "C" fn breakpt_handler() -> ! {
-    println!("EXCEPTION: BREAKPOINT (INT3)");
-    /* TODO: IMPLEMENT */
+extern "C" fn invalid_op_handler(stack_frame: &ExceptionStackFrame) -> ! {
+    println!("EXCEPTION: INVALID OPCODE\n{:#x?}", &*stack_frame);
     loop {}
 }
 
-extern "C" fn overflow_handler() -> ! {
-    println!("EXCEPTION: OVERFLOW");
-    /* TODO: IMPLEMENT */
-    loop {}
-}
-
-extern "C" fn bre_handler() -> ! {
-    println!("EXCEPTION: BOUND RANGE EXCEEDED");
-    /* TODO: IMPLEMENT */
+extern "C" fn pg_fault_handler(stack_frame: &ExceptionStackFrame, err_code: u64) -> ! {
+    println!(
+        "EXCEPTION: PAGE FAULT with error code {:#x}\n{:#x?}",
+        err_code, &*stack_frame
+    );
     loop {}
 }
 
 pub fn init() {
     IDT.load();
-}
-
-pub fn init_test() {
-    TEST_IDT.load();
 }

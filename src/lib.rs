@@ -14,9 +14,19 @@ pub mod interrupts;
 pub mod serial;
 pub mod vga_buf;
 
+/* EXCEPTION HANDLER TESTING FUNCTIONS */
+
 // need to create a custom divide by zero function since Rust runtime-checker will catch it otherwise
 pub fn divide_by_zero() {
     unsafe { asm!("mov dx, 0", "div dx",) }
+}
+
+pub fn invalid_opcode() {
+    unsafe { asm!("ud2") }
+}
+
+pub fn page_fault() {
+    unsafe { *(0xdeadbee8 as *mut u64) = 12 }
 }
 
 // create 32-bit exit code enum for QEMU exit port
