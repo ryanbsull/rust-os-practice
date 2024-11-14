@@ -118,10 +118,27 @@ extern "C" fn invalid_op_handler(stack_frame: &ExceptionStackFrame) -> ! {
     loop {}
 }
 
+/*
+   Page Fault Error Codes:
+
+   PROTECTION_VIOLATION = 1 << 0;
+   CAUSED_BY_WRITE = 1 << 1;
+   USER_MODE = 1 << 2;
+   MALFORMED_TABLE = 1 << 3;
+   INSTRUCTION_FETCH = 1 << 4;
+*/
 extern "C" fn pg_fault_handler(stack_frame: &ExceptionStackFrame, err_code: u64) -> ! {
+    let error = match err_code {
+        0x1 => "PROTECTION_VIOLATION",
+        0x2 => "CAUSED_BY_WRITE",
+        0x4 => "USER_MODE",
+        0x8 => "MALFORMED_TABLE",
+        0x10 => "INSTRUCTION_FETCH",
+        _ => "UNKNOWN",
+    };
     println!(
-        "EXCEPTION: PAGE FAULT with error code {:#x}\n{:#x?}",
-        err_code, &*stack_frame
+        "EXCEPTION: PAGE FAULT with error code: {}\n{:#x?}",
+        error, &*stack_frame
     );
     loop {}
 }
