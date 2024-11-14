@@ -29,6 +29,10 @@ pub fn page_fault() {
     unsafe { *(0xdeadbee8 as *mut u64) = 12 }
 }
 
+pub fn breakpoint() {
+    x86_64::instructions::interrupts::int3();
+}
+
 // create 32-bit exit code enum for QEMU exit port
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]

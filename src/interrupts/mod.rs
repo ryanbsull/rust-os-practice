@@ -34,7 +34,30 @@ macro_rules! handler {
         #[naked]
         extern "C" fn wrapper() -> ! {
             unsafe {
-                naked_asm!("mov rdi, rsp; sub rsp, 8; call {}", sym $name);
+                naked_asm!("
+                    push rax;
+                    push rcx;
+                    push rdx;
+                    push rsi;
+                    push rdi;
+                    push r8;
+                    push r9;
+                    push r10;
+                    push r11;
+                    mov rdi, rsp;
+                    sub rsp, 8; 
+                    call {}; 
+                    add rsp, 8; 
+                    pop r11;
+                    pop r10;
+                    pop r9;
+                    pop r8;
+                    pop rdi;
+                    pop rsi;
+                    pop rdx;
+                    pop rcx;
+                    pop rax;
+                    iretq", sym $name);
             }
         }
         wrapper
@@ -48,7 +71,31 @@ macro_rules! handler_with_errcode {
         #[naked]
         extern "C" fn wrapper() -> ! {
             unsafe {
-                naked_asm!("pop rsi; mov rdi, rsp; sub rsp, 8; call {}", sym $name);
+                naked_asm!("
+                    push rax;
+                    push rcx;
+                    push rdx;
+                    push rsi;
+                    push rdi;
+                    push r8;
+                    push r9;
+                    push r10;
+                    push r11;
+                    pop rsi;
+                    mov rdi, rsp;
+                    sub rsp, 8;
+                    call {}
+                    add rsp, 8;
+                    pop r11;
+                    pop r10;
+                    pop r9;
+                    pop r8;
+                    pop rdi;
+                    pop rsi;
+                    pop rdx;
+                    pop rcx;
+                    pop rax;
+                    iretq", sym $name);
             }
         }
         wrapper
@@ -108,9 +155,8 @@ extern "C" fn zero_div_handler(stack_frame: &ExceptionStackFrame) -> ! {
     loop {}
 }
 
-extern "C" fn breakpt_handler(stack_frame: &ExceptionStackFrame) -> ! {
+extern "C" fn breakpt_handler(stack_frame: &ExceptionStackFrame) {
     println!("EXCEPTION: BREAKPOINT (INT3)\n{:#x?}", &*stack_frame);
-    loop {}
 }
 
 extern "C" fn invalid_op_handler(stack_frame: &ExceptionStackFrame) -> ! {

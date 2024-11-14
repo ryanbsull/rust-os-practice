@@ -36,6 +36,7 @@ fn panic(info: &PanicInfo) -> ! {
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     interrupts::init();
+    os_practice::breakpoint();
     println!("Hello World{}", '!');
     #[cfg(test)]
     test_main();
