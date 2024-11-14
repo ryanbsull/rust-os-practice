@@ -35,6 +35,8 @@ macro_rules! handler {
         extern "C" fn wrapper() -> ! {
             unsafe {
                 naked_asm!("
+                    mov rdi, rsp;
+                    sub rsp, 8;
                     push rax;
                     push rcx;
                     push rdx;
@@ -44,10 +46,7 @@ macro_rules! handler {
                     push r9;
                     push r10;
                     push r11;
-                    mov rdi, rsp;
-                    sub rsp, 8; 
-                    call {}; 
-                    add rsp, 8; 
+                    call {};
                     pop r11;
                     pop r10;
                     pop r9;
@@ -57,6 +56,7 @@ macro_rules! handler {
                     pop rdx;
                     pop rcx;
                     pop rax;
+                    add rsp, 8;
                     iretq", sym $name);
             }
         }
@@ -72,6 +72,9 @@ macro_rules! handler_with_errcode {
         extern "C" fn wrapper() -> ! {
             unsafe {
                 naked_asm!("
+                    pop rsi;
+                    mov rdi, rsp;
+                    sub rsp, 8;
                     push rax;
                     push rcx;
                     push rdx;
@@ -81,11 +84,7 @@ macro_rules! handler_with_errcode {
                     push r9;
                     push r10;
                     push r11;
-                    pop rsi;
-                    mov rdi, rsp;
-                    sub rsp, 8;
                     call {}
-                    add rsp, 8;
                     pop r11;
                     pop r10;
                     pop r9;
@@ -95,6 +94,7 @@ macro_rules! handler_with_errcode {
                     pop rdx;
                     pop rcx;
                     pop rax;
+                    add rsp, 8;
                     iretq", sym $name);
             }
         }
@@ -108,6 +108,7 @@ lazy_static! {
         idt.set_handler(0, handler!(zero_div_handler));
         idt.set_handler(3, handler!(breakpt_handler));
         idt.set_handler(6, handler!(invalid_op_handler));
+        idt.set_handler(8, handler_with_errcode!(double_fault_handler));
         idt.set_handler(14, handler_with_errcode!(pg_fault_handler));
         idt
     };
@@ -164,6 +165,14 @@ extern "C" fn invalid_op_handler(stack_frame: &ExceptionStackFrame) -> ! {
     loop {}
 }
 
+extern "C" fn double_fault_handler(stack_frame: &ExceptionStackFrame, err_code: u64) -> ! {
+    println!(
+        "EXCEPTION: DOUBLE FAULT with error code: {:#x}\n{:#x?}",
+        err_code, &*stack_frame
+    );
+    loop {}
+}
+
 /*
    Page Fault Error Codes:
 
@@ -173,7 +182,7 @@ extern "C" fn invalid_op_handler(stack_frame: &ExceptionStackFrame) -> ! {
    MALFORMED_TABLE = 1 << 3;
    INSTRUCTION_FETCH = 1 << 4;
 */
-extern "C" fn pg_fault_handler(stack_frame: &ExceptionStackFrame, err_code: u64) -> ! {
+extern "C" fn pg_fault_handler(stack_frame: &ExceptionStackFrame, err_code: u64) {
     let error = match err_code {
         0x1 => "PROTECTION_VIOLATION",
         0x2 => "CAUSED_BY_WRITE",
@@ -186,7 +195,6 @@ extern "C" fn pg_fault_handler(stack_frame: &ExceptionStackFrame, err_code: u64)
         "EXCEPTION: PAGE FAULT with error code: {}\n{:#x?}",
         error, &*stack_frame
     );
-    loop {}
 }
 
 pub fn init() {
