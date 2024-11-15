@@ -10,6 +10,7 @@
 extern crate bit_field;
 use core::arch::asm;
 use core::panic::PanicInfo;
+pub mod gdt;
 pub mod interrupts;
 pub mod serial;
 pub mod vga_buf;
@@ -104,4 +105,10 @@ pub extern "C" fn _start() -> ! {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     test_panic_handler(info);
+}
+
+pub fn init() {
+    // init the GDT before so the IST is setup for our handlers
+    gdt::init();
+    interrupts::init();
 }

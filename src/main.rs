@@ -8,7 +8,7 @@
 #![test_runner(os_practice::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 use core::panic::PanicInfo;
-use os_practice::{interrupts, println};
+use os_practice::println;
 
 // function called in the event of a panic
 /// return type = ! ("never" type) as it will just loop and never return
@@ -36,9 +36,17 @@ fn panic(info: &PanicInfo) -> ! {
 */
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    interrupts::init();
-    os_practice::breakpoint();
+    os_practice::init();
     println!("Hello World{}", '!');
+
+    /*
+    fn overflow() {
+        overflow();
+    }
+
+    overflow();
+    */
+
     #[cfg(test)]
     test_main();
     loop {}

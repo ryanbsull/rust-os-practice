@@ -9,7 +9,7 @@ use x86_64::PrivilegeLevel;
 pub struct Idt([Entry; 16]);
 
 #[derive(Debug, Clone, Copy)]
-// ensures compiler keeps field ordering and does not add any padding between fields
+// ensures compiler keeps field ordering and does not add any padding between fields and aligns on a multiple of 0x8 in memory (required by hardware)
 // *must be kept in this order (matches the C structure)
 #[repr(C, packed)]
 pub struct Entry {
@@ -29,13 +29,13 @@ pub struct EntryOptions(u16);
 impl EntryOptions {
     // exclusively handles the requirements
     fn minimal() -> Self {
-        let mut options = 0x0000;
-        options.set_bits(9..12, 0b111); // bits 9..12 must always be '1'
+        let mut options: u16 = 0x0;
+        options.set_bits(9..=11, 0b111); // bits 9->11 must always be '1'
         EntryOptions(options)
     }
 
     // sets options to a reasonable preset value
-    fn new() -> Self {
+    pub fn new() -> Self {
         let mut options = Self::minimal();
         options.set_present(true).disable_interrupts(true);
         options
@@ -49,17 +49,19 @@ impl EntryOptions {
     }
 
     pub fn disable_interrupts(&mut self, disable: bool) -> &mut Self {
-        self.0.set_bit(8, disable);
+        self.0.set_bit(8, !disable);
         self
     }
 
     pub fn set_privilege_level(&mut self, dpl: u16) -> &mut Self {
-        self.0.set_bits(13..15, dpl);
+        // set bits 13, 14
+        self.0.set_bits(13..=14, dpl);
         self
     }
 
     pub fn set_stack_idx(&mut self, idx: u16) -> &mut Self {
-        self.0.set_bits(0..3, idx);
+        // set bits 0->2
+        self.0.set_bits(0..=2, idx);
         self
     }
 }
@@ -83,14 +85,17 @@ pub type HandlerFunc = extern "C" fn() -> !;
 
 // define IDT entry functions
 impl Entry {
-    fn new(gdt_sel: SegmentSelector, handler: HandlerFunc) -> Self {
+    fn new(gdt_sel: SegmentSelector, handler: HandlerFunc, opt: Option<EntryOptions>) -> Self {
         let ptr = handler as u64;
         Entry {
             gdt_sel,
             ptr_low: ptr as u16,
             ptr_mid: (ptr >> 16) as u16,
             ptr_high: (ptr >> 32) as u32,
-            options: EntryOptions::new(),
+            options: match opt {
+                None => EntryOptions::new(),
+                Some(x) => x,
+            },
             reserved: 0,
         }
     }
@@ -114,8 +119,8 @@ impl Idt {
     }
 
     // from phil-opp.com: originally returned &mut EntryOptions but cannot return unaligned field now
-    pub fn set_handler(&mut self, entry: u8, handler: HandlerFunc) {
-        self.0[entry as usize] = Entry::new(segmentation::CS::get_reg(), handler);
+    pub fn set_handler(&mut self, entry: u8, handler: HandlerFunc, opt: Option<EntryOptions>) {
+        self.0[entry as usize] = Entry::new(segmentation::CS::get_reg(), handler, opt);
     }
 
     // IDT must be valid until a new IDT is loaded and as long as the kernel runs, thus "'static"
@@ -128,7 +133,7 @@ impl Idt {
         use x86_64::VirtAddr;
 
         let ptr = DescriptorTablePointer {
-            base: VirtAddr::from_ptr(self as *const _),
+            base: VirtAddr::from_ptr(core::ptr::from_ref(self)),
             limit: (size_of::<Self>() - 1) as u16,
         };
 

@@ -1,5 +1,6 @@
-use crate::{println, serial_println};
+use crate::{gdt::DOUBLE_FAULT_IST_IDX, println, serial_println};
 use core::arch::naked_asm;
+use idt::EntryOptions;
 use lazy_static::lazy_static;
 mod idt;
 
@@ -35,8 +36,6 @@ macro_rules! handler {
         extern "C" fn wrapper() -> ! {
             unsafe {
                 naked_asm!("
-                    mov rdi, rsp;
-                    sub rsp, 8;
                     push rax;
                     push rcx;
                     push rdx;
@@ -46,6 +45,8 @@ macro_rules! handler {
                     push r9;
                     push r10;
                     push r11;
+                    mov rdi, rsp;
+                    add rdi, 9*8;
                     call {};
                     pop r11;
                     pop r10;
@@ -56,7 +57,6 @@ macro_rules! handler {
                     pop rdx;
                     pop rcx;
                     pop rax;
-                    add rsp, 8;
                     iretq", sym $name);
             }
         }
@@ -73,8 +73,6 @@ macro_rules! handler_with_errcode {
             unsafe {
                 naked_asm!("
                     pop rsi;
-                    mov rdi, rsp;
-                    sub rsp, 8;
                     push rax;
                     push rcx;
                     push rdx;
@@ -84,6 +82,8 @@ macro_rules! handler_with_errcode {
                     push r9;
                     push r10;
                     push r11;
+                    mov rdi, rsp;
+                    add rdi, 9*8;
                     call {}
                     pop r11;
                     pop r10;
@@ -94,7 +94,6 @@ macro_rules! handler_with_errcode {
                     pop rdx;
                     pop rcx;
                     pop rax;
-                    add rsp, 8;
                     iretq", sym $name);
             }
         }
@@ -105,11 +104,14 @@ macro_rules! handler_with_errcode {
 lazy_static! {
     pub static ref IDT: idt::Idt = {
         let mut idt = idt::Idt::new();
-        idt.set_handler(0, handler!(zero_div_handler));
-        idt.set_handler(3, handler!(breakpt_handler));
-        idt.set_handler(6, handler!(invalid_op_handler));
-        idt.set_handler(8, handler_with_errcode!(double_fault_handler));
-        idt.set_handler(14, handler_with_errcode!(pg_fault_handler));
+        idt.set_handler(0, handler!(zero_div_handler), None);
+        idt.set_handler(3, handler!(breakpt_handler), None);
+        idt.set_handler(6, handler!(invalid_op_handler), None);
+        // set double fault handler options (IST index)
+        let mut double_fault_options = EntryOptions::new();
+        double_fault_options.set_stack_idx(DOUBLE_FAULT_IST_IDX);
+        idt.set_handler(8, handler_with_errcode!(double_fault_handler), Some(double_fault_options));
+        // idt.set_handler(14, handler_with_errcode!(pg_fault_handler));
         idt
     };
 }
@@ -139,6 +141,7 @@ Stack frame
 
 #[derive(Debug, Default)]
 // Note: #[repr(C)] guarantees field order is as stated, Rust representation doesn't!!
+// again align(8) to ensure that the ExceptionStack frame remains aligned on a multiple of 0x8 in memory
 #[repr(C, packed)]
 // the fields are ordered in reverse since the stack grows downward
 struct ExceptionStackFrame {
@@ -207,7 +210,7 @@ pub fn init() {
 lazy_static! {
     pub static ref TEST_IDT: idt::Idt = {
         let mut idt = idt::Idt::new();
-        idt.set_handler(0, handler!(test_zero_div_handler));
+        idt.set_handler(0, handler!(test_zero_div_handler), None);
         idt
     };
 }
