@@ -25,6 +25,7 @@ macro_rules! serial_println {
     ($($arg:tt)*) => ($crate::serial_print!("{}\n", format_args!($($arg)*)));
     ($fmt:expr, $($arg:tt)*) => ($crate::serial_print!(concat!($fmt, "\n"), $($arg)*));
 }
+
 // use doc(hidden) to hide function from generated documentation
 // as it is a private implementation detail
 #[doc(hidden)]

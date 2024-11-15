@@ -25,6 +25,7 @@ fn panic(info: &PanicInfo) -> ! {
     // now can just call testing function from lib.rs
     os_practice::test_panic_handler(info);
 }
+
 /* entry point for the free-standing binary
 
     requires the "no-mangle" attribute to ensure its name is preserved

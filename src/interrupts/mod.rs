@@ -1,4 +1,4 @@
-use crate::println;
+use crate::{println, serial_println};
 use core::arch::naked_asm;
 use lazy_static::lazy_static;
 mod idt;
@@ -199,4 +199,25 @@ extern "C" fn pg_fault_handler(stack_frame: &ExceptionStackFrame, err_code: u64)
 
 pub fn init() {
     IDT.load();
+}
+
+/* ===== TESTING ===== */
+
+// IDT to be used in integration tests where we can install test handlers
+lazy_static! {
+    pub static ref TEST_IDT: idt::Idt = {
+        let mut idt = idt::Idt::new();
+        idt.set_handler(0, handler!(test_zero_div_handler));
+        idt
+    };
+}
+
+extern "C" fn test_zero_div_handler(_stack_frame: &ExceptionStackFrame) -> ! {
+    serial_println!("[ok]");
+    crate::exit_qemu(crate::QEMUExitCode::Success);
+    loop {}
+}
+
+pub fn init_test() {
+    TEST_IDT.load();
 }

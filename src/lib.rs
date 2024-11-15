@@ -40,6 +40,7 @@ pub enum QEMUExitCode {
     Success = 0x10,
     Failure = 0x11,
 }
+
 // track QEMU exit port value, defined in Cargo.toml
 const QEMU_PORT: u16 = 0xf4;
 
