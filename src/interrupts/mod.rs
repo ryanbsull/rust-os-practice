@@ -111,7 +111,7 @@ lazy_static! {
         let mut double_fault_options = EntryOptions::new();
         double_fault_options.set_stack_idx(DOUBLE_FAULT_IST_IDX);
         idt.set_handler(8, handler_with_errcode!(double_fault_handler), Some(double_fault_options));
-        // idt.set_handler(14, handler_with_errcode!(pg_fault_handler));
+        idt.set_handler(14, handler_with_errcode!(pg_fault_handler), None);
         idt
     };
 }
@@ -165,6 +165,11 @@ extern "C" fn breakpt_handler(stack_frame: &ExceptionStackFrame) {
 
 extern "C" fn invalid_op_handler(stack_frame: &ExceptionStackFrame) -> ! {
     println!("EXCEPTION: INVALID OPCODE\n{:#x?}", &*stack_frame);
+    loop {}
+}
+
+extern "C" fn overflow_handler(stack_frame: &ExceptionStackFrame) -> ! {
+    println!("EXCEPTION: OVERFLOW\n{:#x?}", &*stack_frame);
     loop {}
 }
 

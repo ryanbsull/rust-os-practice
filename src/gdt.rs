@@ -3,6 +3,8 @@ use x86_64::structures::gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector
 use x86_64::structures::tss::TaskStateSegment;
 use x86_64::VirtAddr;
 
+use crate::serial_println;
+
 pub const DOUBLE_FAULT_IST_IDX: u16 = 0;
 
 /*
@@ -55,8 +57,9 @@ lazy_static! {
 
             // calculate beginning and end of the stack and return a pointer
             // to the end limit of the stack
+            #[allow(static_mut_refs)]
             let stack_start = VirtAddr::from_ptr(unsafe {core::ptr::from_ref(&STACK)} );
-            stack_start + STACK_SIZE // end of the stack
+            stack_start + STACK_SIZE // top of the stack from where it can grow downward
         };
         tss
     };
@@ -77,8 +80,10 @@ lazy_static! {
         let mut gdt = GlobalDescriptorTable::new();
         // initialize the code segment of the GDT for the kernel and capture the SegmentSelector for it
         let code_selector = gdt.add_entry(Descriptor::kernel_code_segment());
+        serial_println!("KERNEL CODE Segment: {:#x?}", Descriptor::kernel_code_segment());
         // initialize the TSS segment of the GDT and capture the SegmentSelector for it
         let tss_selector = gdt.add_entry(Descriptor::tss_segment(&TSS));
+        serial_println!("TSS Segment: {:#x?}", Descriptor::tss_segment(&TSS));
         (gdt, Selectors {code_selector, tss_selector})
     };
 }
@@ -94,8 +99,10 @@ pub fn init() {
 
     GDT.0.load();
     unsafe {
+        crate::serial_println!("Before: {:#x?}", CS::get_reg());
         // reload the code segment register
         CS::set_reg(GDT.1.code_selector);
+        crate::serial_println!("After: {:#x?}", CS::get_reg());
         // load the TSS
         load_tss(GDT.1.tss_selector);
     }

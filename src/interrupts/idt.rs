@@ -6,6 +6,7 @@ use x86_64::PrivilegeLevel;
 
 // IDT is variably sized w/ up to 256 entries, just going to do 16 for now
 // the remaining 240 will be treated as non-present by CPU
+#[derive(Debug)]
 pub struct Idt([Entry; 16]);
 
 #[derive(Debug, Clone, Copy)]

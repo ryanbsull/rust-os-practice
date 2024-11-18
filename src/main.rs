@@ -39,13 +39,11 @@ pub extern "C" fn _start() -> ! {
     os_practice::init();
     println!("Hello World{}", '!');
 
-    /*
     fn overflow() {
         overflow();
     }
 
     overflow();
-    */
 
     #[cfg(test)]
     test_main();
