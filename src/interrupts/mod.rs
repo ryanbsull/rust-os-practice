@@ -109,7 +109,7 @@ lazy_static! {
         idt.set_handler(6, handler!(invalid_op_handler), None);
         // set double fault handler options (IST index)
         let mut double_fault_options = EntryOptions::new();
-        double_fault_options.set_stack_idx(DOUBLE_FAULT_IST_IDX);
+        double_fault_options.set_stack_idx(DOUBLE_FAULT_IST_IDX + 1);
         idt.set_handler(8, handler_with_errcode!(double_fault_handler), Some(double_fault_options));
         idt.set_handler(14, handler_with_errcode!(pg_fault_handler), None);
         idt
