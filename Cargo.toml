@@ -26,6 +26,7 @@ x86_64 = "0.14.2"
 # allows us to init the UART and send data over the serial port
 # common UARTs today are compatible with 16550 UART, a much simpler UART model
 uart_16550 = "0.2.0"
+# allows for more easy bit manipulation
 bit_field = "0.10.2"
 
 [dependencies.lazy_static]
