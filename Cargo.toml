@@ -28,6 +28,9 @@ x86_64 = "0.14.2"
 uart_16550 = "0.2.0"
 # allows for more easy bit manipulation
 bit_field = "0.10.2"
+# allows us to use a Programmable Interrupt Controller (PIC) for our hardware interrupts for
+# hardware interactions e.g. keyboard input
+pic8259 = "0.10.1"
 
 [dependencies.lazy_static]
 version = "1.0"

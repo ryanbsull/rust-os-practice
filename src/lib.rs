@@ -34,6 +34,12 @@ pub fn breakpoint() {
     x86_64::instructions::interrupts::int3();
 }
 
+// keep this function here in case I want to test a stack overflow again
+#[allow(unconditional_recursion)]
+pub fn overflow() {
+    overflow();
+}
+
 // create 32-bit exit code enum for QEMU exit port
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
@@ -111,4 +117,9 @@ pub fn init() {
     // init the GDT before so the IST is setup for our handlers
     gdt::init();
     interrupts::init();
+    // initialize the PICs to handle hardware interrupts
+    unsafe { interrupts::PICS.lock().initialize() };
+    // enable CPU interrupts
+    // executes `sti` ("set interrupts") instruction to enable external interrupts
+    x86_64::instructions::interrupts::enable();
 }

@@ -7,7 +7,7 @@ use x86_64::PrivilegeLevel;
 // IDT is variably sized w/ up to 256 entries, just going to do 16 for now
 // the remaining 240 will be treated as non-present by CPU
 #[derive(Debug)]
-pub struct Idt([Entry; 16]);
+pub struct Idt([Entry; 256]);
 
 #[derive(Debug, Clone, Copy)]
 // ensures compiler keeps field ordering and does not add any padding between fields and aligns on a multiple of 0x8 in memory (required by hardware)
@@ -116,12 +116,12 @@ impl Entry {
 
 impl Idt {
     pub fn new() -> Idt {
-        Idt([Entry::missing(); 16])
+        Idt([Entry::missing(); 256])
     }
 
     // from phil-opp.com: originally returned &mut EntryOptions but cannot return unaligned field now
-    pub fn set_handler(&mut self, entry: u8, handler: HandlerFunc, opt: Option<EntryOptions>) {
-        self.0[entry as usize] = Entry::new(segmentation::CS::get_reg(), handler, opt);
+    pub fn set_handler(&mut self, entry: usize, handler: HandlerFunc, opt: Option<EntryOptions>) {
+        self.0[entry] = Entry::new(segmentation::CS::get_reg(), handler, opt);
     }
 
     // IDT must be valid until a new IDT is loaded and as long as the kernel runs, thus "'static"

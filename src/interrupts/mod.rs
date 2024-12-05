@@ -2,8 +2,93 @@ use crate::{gdt::DOUBLE_FAULT_IST_IDX, println, serial_println};
 use core::arch::naked_asm;
 use idt::EntryOptions;
 use lazy_static::lazy_static;
+use pic8259::ChainedPics;
 mod idt;
 
+/* ===== HARDWARE INTERRUPTS ===== */
+
+/*
+Programmable Interrupt Controller (PIC)
+- Aggregates interrupts from external devices and notifies the CPU
+    - Orders these interrupts by priority level
+        - e.g. The system timer will be higher priority than the keyboard
+- Allows the CPU to skip having to poll all of the connected devices
+- Hardware interrupts can occur asynchronously
+    - Much faster
+    - Much more dangerous
+        - Rust's ownership model protects us by forbidding mutable global state
+        - Deadlocks are still possible
+
+Simplified PIC setup:
+                        ____________             _____
+   Timer ------------> |            |           |     |
+   Keyboard ---------> | Interrupt  |---------> | CPU |
+   Other Hardware ---> | Controller |           |_____|
+   Etc. -------------> |____________|
+
+Typical system's 2 PIC setup:
+                     ____________                          ____________
+Real Time Clock --> |            |   Timer -------------> |            |
+ACPI -------------> |            |   Keyboard-----------> |            |      _____
+Available --------> | Secondary  |----------------------> | Primary    |     |     |
+Available --------> | Interrupt  |   Serial Port 2 -----> | Interrupt  |---> | CPU |
+Mouse ------------> | Controller |   Serial Port 1 -----> | Controller |     |_____|
+Co-Processor -----> |            |   Parallel Port 2/3 -> |            |
+Primary ATA ------> |            |   Floppy disk -------> |            |
+Secondary ATA ----> |____________|   Parallel Port 1----> |____________|
+
+- This allows us to connect many more devices
+- Also allows for more levels of priority
+- Each controller is configured w/ 2 I/O ports [command, data] at set memory locations
+    - Primary Interrupt Controller: [command: 0x20, data: 0x21]
+    - Secondary Interrupt Controller: [command: 0xa0, data: 0xa1]
+*/
+
+// need to add an offset to the PIC outputs since they typically output in range 0->15
+// these values are already taken by the interrupt handlers though so usually the range
+// 32->47 is chosen since they're the first free numbers following the 32 exception slots
+pub const PIC_1_OFFSET: u8 = 32;
+pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
+
+// creates a 2 PIC setup illustrated above and locks behind a mutex to allow for safe global accesses
+pub static PICS: spin::Mutex<ChainedPics> =
+    spin::Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
+
+// define interrupt handler indices
+#[derive(Debug, Clone, Copy)]
+#[repr(u8)]
+#[allow(dead_code)]
+enum InterruptIndex {
+    Timer = PIC_1_OFFSET,
+    Keyboard,
+    SIC,
+    Serial2,
+    Serial1,
+    ParallelPort23,
+    Floppy,
+    ParallelPort1,
+}
+
+// helper functions for quickly changing their data type
+impl InterruptIndex {
+    fn as_u8(self) -> u8 {
+        return self as u8;
+    }
+
+    fn as_usize(self) -> usize {
+        return self as usize;
+    }
+}
+
+extern "C" fn timer_interrupt_handler(_stack_frame: &ExceptionStackFrame) {
+    crate::print!(".");
+    unsafe {
+        PICS.lock()
+            .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
+    }
+}
+
+/* ===== IDT TABLE ===== */
 /*
 IDT Table:
 
@@ -112,6 +197,7 @@ lazy_static! {
         double_fault_options.set_stack_idx(DOUBLE_FAULT_IST_IDX + 1);
         idt.set_handler(8, handler_with_errcode!(double_fault_handler), Some(double_fault_options));
         idt.set_handler(14, handler_with_errcode!(pg_fault_handler), None);
+        idt.set_handler(InterruptIndex::Timer.as_usize(), handler!(timer_interrupt_handler), None);
         idt
     };
 }
@@ -168,6 +254,8 @@ extern "C" fn invalid_op_handler(stack_frame: &ExceptionStackFrame) -> ! {
     loop {}
 }
 
+// disabling this for now until the double-fault handler is finished for testing
+#[allow(dead_code)]
 extern "C" fn overflow_handler(stack_frame: &ExceptionStackFrame) -> ! {
     println!("EXCEPTION: OVERFLOW\n{:#x?}", &*stack_frame);
     loop {}
@@ -205,6 +293,7 @@ extern "C" fn pg_fault_handler(stack_frame: &ExceptionStackFrame, err_code: u64)
     );
 }
 
+/* ===== INIT ===== */
 pub fn init() {
     IDT.load();
 }
