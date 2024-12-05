@@ -198,12 +198,17 @@ fn test_println_many() {
 // test that printing is being written to the screen
 #[test_case]
 fn test_println_output() {
+    use core::fmt::Write;
+    use x86_64::instructions::interrupts;
     let s = "test_println_output test string";
-    println!("{}", s);
-    // use enumerate to get both the position in the str: i and the character: c
-    for (i, c) in s.chars().enumerate() {
-        // check line above in buffer as println! will move the string up a row after printing
-        let screen_char = WRITER.lock().buf.chars[BUFFER_HEIGHT - 2][i].read();
-        assert_eq!(char::from(screen_char.ascii_character), c);
-    }
+    interrupts::without_interrupts(|| {
+        let mut writer = WRITER.lock();
+        writeln!(writer, "\n{}", s).expect("writeln! failed");
+        // use enumerate to get both the position in the str: i and the character: c
+        for (i, c) in s.chars().enumerate() {
+            // check line above in buffer as println! will move the string up a row after printing
+            let screen_char = WRITER.lock().buf.chars[BUFFER_HEIGHT - 2][i].read();
+            assert_eq!(char::from(screen_char.ascii_character), c);
+        }
+    })
 }

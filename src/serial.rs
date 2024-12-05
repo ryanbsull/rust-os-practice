@@ -31,8 +31,13 @@ macro_rules! serial_println {
 #[doc(hidden)]
 pub fn _print(args: core::fmt::Arguments) {
     use core::fmt::Write;
-    SERIAL1
-        .lock()
-        .write_fmt(args)
-        .expect("Serial printing failed");
+    use x86_64::instructions::interrupts;
+
+    // prevents deadlocks by making sure the Mutex runs without interruption
+    interrupts::without_interrupts(|| {
+        SERIAL1
+            .lock()
+            .write_fmt(args)
+            .expect("Serial printing failed");
+    });
 }
