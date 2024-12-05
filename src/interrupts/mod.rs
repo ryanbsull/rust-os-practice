@@ -81,10 +81,58 @@ impl InterruptIndex {
 }
 
 extern "C" fn timer_interrupt_handler(_stack_frame: &ExceptionStackFrame) {
-    crate::print!(".");
+    // going to leave this blank for now since it's a bit distracting
+    crate::print!("");
+
+    // sends explicit End Of Interrupt (EOI) signal to PIC so it can receive the next interrupt
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
+    }
+}
+
+extern "C" fn keyboard_interrupt_handler(_stack_frame: &ExceptionStackFrame) {
+    use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
+    use spin::Mutex;
+    use x86_64::instructions::port::Port;
+
+    // setup a KEYBOARD global object to handle scancode translation
+    lazy_static! {
+        static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> =
+            Mutex::new(Keyboard::new(
+                ScancodeSet1::new(),
+                layouts::Us104Key,
+                HandleControl::Ignore
+            ));
+    }
+
+    /*
+        Setup a port to read the scancode sent by the keyboard
+
+        Note:
+        - The keyboard will not send another scancode until the current one
+          is read
+        - This handler works for a PS/2 controller keyboard but QEMU will
+          emulate that for now
+            - The data port for the PS/2 controller is 0x60
+    */
+    let mut keyboard = KEYBOARD.lock();
+    let mut p = Port::new(0x60);
+
+    // read, translate, and display the scancode received
+    let scancode: u8 = unsafe { p.read() };
+    if let Ok(Some(key_press)) = keyboard.add_byte(scancode) {
+        if let Some(key) = keyboard.process_keyevent(key_press) {
+            match key {
+                DecodedKey::Unicode(character) => crate::print!("{character}"),
+                DecodedKey::RawKey(key) => crate::serial_print!("{:?}", key), // redirect output here to serial so it doesn't crowd the screen
+            }
+        }
+    }
+
+    unsafe {
+        PICS.lock()
+            .notify_end_of_interrupt(InterruptIndex::Keyboard.as_u8());
     }
 }
 
@@ -198,6 +246,7 @@ lazy_static! {
         idt.set_handler(8, handler_with_errcode!(double_fault_handler), Some(double_fault_options));
         idt.set_handler(14, handler_with_errcode!(pg_fault_handler), None);
         idt.set_handler(InterruptIndex::Timer.as_usize(), handler!(timer_interrupt_handler), None);
+        idt.set_handler(InterruptIndex::Keyboard.as_usize(), handler!(keyboard_interrupt_handler), None);
         idt
     };
 }
