@@ -40,6 +40,7 @@ pub fn overflow() {
     overflow();
 }
 
+/* QEMU CONTROL FUNCTIONS */
 // create 32-bit exit code enum for QEMU exit port
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
@@ -60,6 +61,7 @@ pub fn exit_qemu(exit_code: QEMUExitCode) {
     }
 }
 
+/* TESTING FRAMEWORK */
 pub trait Testable {
     fn run(&self);
 }
@@ -87,7 +89,7 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
     serial_println!("[failed]\n");
     serial_println!("Error: {}\n", info);
     exit_qemu(QEMUExitCode::Failure);
-    loop {}
+    hlt_loop();
 }
 
 #[test_case]
@@ -101,7 +103,7 @@ fn trivial_assertion() {
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     test_main();
-    loop {}
+    hlt_loop();
 }
 
 // configure a different panic handler to run while testing, otherwise QEMU
@@ -111,6 +113,17 @@ pub extern "C" fn _start() -> ! {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     test_panic_handler(info);
+}
+
+/* KERNEL FUNCTIONALITY */
+
+// useful for our -> ! functions because rather than making the CPU spin
+// the whole time, it instead allows the CPU to sit idle, much more power
+// efficient
+pub fn hlt_loop() -> ! {
+    loop {
+        x86_64::instructions::hlt();
+    }
 }
 
 pub fn init() {

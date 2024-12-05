@@ -16,7 +16,7 @@ use os_practice::println;
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     println!("{}\n", info);
-    loop {}
+    os_practice::hlt_loop();
 }
 
 #[cfg(test)]
@@ -41,5 +41,5 @@ pub extern "C" fn _start() -> ! {
 
     #[cfg(test)]
     test_main();
-    loop {}
+    os_practice::hlt_loop();
 }

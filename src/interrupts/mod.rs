@@ -242,7 +242,7 @@ struct ExceptionStackFrame {
 // we need to know the real name of our function since naked_asm prohibits "in(reg)"
 extern "C" fn zero_div_handler(stack_frame: &ExceptionStackFrame) -> ! {
     println!("EXCEPTION: DIVSION BY ZERO\n{:#x?}", &*stack_frame);
-    loop {}
+    crate::hlt_loop();
 }
 
 extern "C" fn breakpt_handler(stack_frame: &ExceptionStackFrame) {
@@ -251,14 +251,14 @@ extern "C" fn breakpt_handler(stack_frame: &ExceptionStackFrame) {
 
 extern "C" fn invalid_op_handler(stack_frame: &ExceptionStackFrame) -> ! {
     println!("EXCEPTION: INVALID OPCODE\n{:#x?}", &*stack_frame);
-    loop {}
+    crate::hlt_loop();
 }
 
 // disabling this for now until the double-fault handler is finished for testing
 #[allow(dead_code)]
 extern "C" fn overflow_handler(stack_frame: &ExceptionStackFrame) -> ! {
     println!("EXCEPTION: OVERFLOW\n{:#x?}", &*stack_frame);
-    loop {}
+    crate::hlt_loop();
 }
 
 extern "C" fn double_fault_handler(stack_frame: &ExceptionStackFrame, err_code: u64) -> ! {
@@ -266,7 +266,7 @@ extern "C" fn double_fault_handler(stack_frame: &ExceptionStackFrame, err_code: 
         "EXCEPTION: DOUBLE FAULT with error code: {:#x}\n{:#x?}",
         err_code, &*stack_frame
     );
-    loop {}
+    crate::hlt_loop();
 }
 
 /*
@@ -312,7 +312,7 @@ lazy_static! {
 extern "C" fn test_zero_div_handler(_stack_frame: &ExceptionStackFrame) -> ! {
     serial_println!("[ok]");
     crate::exit_qemu(crate::QEMUExitCode::Success);
-    loop {}
+    crate::hlt_loop();
 }
 
 pub fn init_test() {

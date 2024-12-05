@@ -8,7 +8,7 @@ use os_practice::{exit_qemu, serial_print, serial_println};
 fn panic(_info: &PanicInfo) -> ! {
     serial_println!("[panicked but did not interrupt]");
     exit_qemu(os_practice::QEMUExitCode::Failure);
-    loop {}
+    os_practice::hlt_loop();
 }
 
 #[no_mangle]
@@ -17,7 +17,7 @@ pub extern "C" fn _start() -> ! {
     serial_println!("Running 1 tests:");
     test_zero_division();
     exit_qemu(os_practice::QEMUExitCode::Failure);
-    loop {}
+    os_practice::hlt_loop();
 }
 
 fn test_zero_division() {

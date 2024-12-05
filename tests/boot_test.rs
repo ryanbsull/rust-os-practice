@@ -15,7 +15,7 @@ use os_practice::println;
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     test_main();
-    loop {}
+    os_practice::hlt_loop();
 }
 
 #[panic_handler]
