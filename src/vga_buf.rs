@@ -207,7 +207,7 @@ fn test_println_output() {
         // use enumerate to get both the position in the str: i and the character: c
         for (i, c) in s.chars().enumerate() {
             // check line above in buffer as println! will move the string up a row after printing
-            let screen_char = WRITER.lock().buf.chars[BUFFER_HEIGHT - 2][i].read();
+            let screen_char = writer.buf.chars[BUFFER_HEIGHT - 2][i].read();
             assert_eq!(char::from(screen_char.ascii_character), c);
         }
     })
