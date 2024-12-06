@@ -327,7 +327,8 @@ extern "C" fn double_fault_handler(stack_frame: &ExceptionStackFrame, err_code: 
    MALFORMED_TABLE = 1 << 3;
    INSTRUCTION_FETCH = 1 << 4;
 */
-extern "C" fn pg_fault_handler(stack_frame: &ExceptionStackFrame, err_code: u64) {
+extern "C" fn pg_fault_handler(stack_frame: &ExceptionStackFrame, err_code: u64) -> ! {
+    use x86_64::registers::control::{Cr2, Cr3};
     let error = match err_code {
         0x1 => "PROTECTION_VIOLATION",
         0x2 => "CAUSED_BY_WRITE",
@@ -336,10 +337,27 @@ extern "C" fn pg_fault_handler(stack_frame: &ExceptionStackFrame, err_code: u64)
         0x10 => "INSTRUCTION_FETCH",
         _ => "UNKNOWN",
     };
+
+    /*
+        Get the physical address of the top level page table by reading the
+        CR3 register, which stores a pointer to said page table in memory
+
+            - x86_64 supports 4-level page tables
+                - some support up to 5 levels but they are still compatible
+                  with 4-level page tables
+    */
+    let (lvl4_pg_table, _) = Cr3::read();
     println!(
-        "EXCEPTION: PAGE FAULT with error code: {}\n{:#x?}",
-        error, &*stack_frame
+        "Level 4 Page Table Physical Address: {:#x}",
+        lvl4_pg_table.start_address().as_u64()
     );
+    println!(
+        "EXCEPTION: PAGE FAULT\nAddr: {:#x}\nError Code: {}\n{:#x?}",
+        Cr2::read().as_u64(),
+        error,
+        &*stack_frame
+    );
+    crate::hlt_loop();
 }
 
 /* ===== INIT ===== */
