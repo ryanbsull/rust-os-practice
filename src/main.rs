@@ -7,6 +7,7 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(os_practice::test_runner)]
 #![reexport_test_harness_main = "test_main"]
+use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use os_practice::println;
 
@@ -26,16 +27,43 @@ fn panic(info: &PanicInfo) -> ! {
     os_practice::test_panic_handler(info);
 }
 
-/* entry point for the free-standing binary
+/*
+    entry point for the free-standing binary
 
-    requires the "no-mangle" attribute to ensure its name is preserved
-    as Rust will change function names to ensure no duplicate names
+    using the entry_point!() macro specifies to the bootloader that
+    this function is our kernel's entry so extern "C" and the name
+    _start() with the #[no_mangle] attribute are no longer needed,
+    nor does it need to be a public function
 
-    'extern "C"' tells the compiler to use the C calling convention
-    instead of the Rust calling convention
+    adding in: boot_info: &'static BootInfo allows it to accept the
+    boot information passed by the bootloader
+
+    BootInfo:
+
+        structure passed by the bootloader to the kernel that specifies:
+            - memory_map
+                - overview of available physical memory
+                    - How much physical memory is available
+                    - What spaces are reserved for devices e.g. VGA hardware
+                - can be queried from BIOS or UEFI firmware but only early
+                  in the boot process
+                      - that's why it's provided by the bootloader
+            - physical_memory_offset
+                - virtual address start of the physical memory mapping
+                    - add offset to a physical address to get its virtual
+                      address
+                - Can be customized by adding [package.metadata.bootloader]
+                  to Cargo.toml and setting the field physical-memory-offset
+                      - e.g physical-memory-offset = "0x0000f00000000000"
+                      - Note: bootloader can panic if it runs into physical
+                        addresses that overlap w/ the space beyond the
+                        offset (areas it would've mapped to some other
+                        early physical addresses)
+                            - In general the higher the value the better
 */
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
+entry_point!(kern_main);
+
+fn kern_main(_boot_info: &'static BootInfo) -> ! {
     os_practice::init();
     println!("Hello World{}", '!');
 

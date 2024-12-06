@@ -100,8 +100,14 @@ fn trivial_assertion() {
 // move the testing function from main.rs to lib.rs, now the entire function
 // _start is only run when testing here
 #[cfg(test)]
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
+use bootloader::{entry_point, BootInfo};
+
+#[cfg(test)]
+entry_point!(test_kern_main);
+
+#[cfg(test)]
+fn test_kern_main(_boot_info: &'static BootInfo) -> ! {
+    init();
     test_main();
     hlt_loop();
 }
