@@ -9,7 +9,8 @@
 #![reexport_test_harness_main = "test_main"]
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
-use os_practice::println;
+use os_practice::{mem::get_top_pg_table, println};
+use x86_64::VirtAddr;
 
 // function called in the event of a panic
 /// return type = ! ("never" type) as it will just loop and never return
@@ -63,9 +64,18 @@ fn panic(info: &PanicInfo) -> ! {
 */
 entry_point!(kern_main);
 
-fn kern_main(_boot_info: &'static BootInfo) -> ! {
+fn kern_main(boot_info: &'static BootInfo) -> ! {
     os_practice::init();
-    println!("Hello World{}", '!');
+
+    // accesses the level 4 page table and prints out used entries
+    let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
+    let l4_table = unsafe { get_top_pg_table(phys_mem_offset) };
+
+    for (i, entry) in l4_table.iter().enumerate() {
+        if !entry.is_unused() {
+            println!("L4 Entry {}: {:?}", i, entry)
+        }
+    }
 
     #[cfg(test)]
     test_main();

@@ -12,6 +12,7 @@ use core::arch::asm;
 use core::panic::PanicInfo;
 pub mod gdt;
 pub mod interrupts;
+pub mod mem;
 pub mod serial;
 pub mod vga_buf;
 
