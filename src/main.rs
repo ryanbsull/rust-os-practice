@@ -77,6 +77,27 @@ fn kern_main(boot_info: &'static BootInfo) -> ! {
         }
     }
 
+    // example addresses for testing
+    let addrs = [
+        // VGA buffer identity-mapped location
+        0xb8000,
+        // some code page
+        0x201010,
+        // some stack page
+        0x0100_0020_1a10,
+        // virtual address mapped to physical address 0
+        // should fail*
+        boot_info.physical_memory_offset,
+    ];
+
+    for &addr in &addrs {
+        let virt = VirtAddr::new(addr);
+        let phys = unsafe {
+            os_practice::mem::translate_addr(virt, VirtAddr::new(boot_info.physical_memory_offset))
+        };
+        println!("{:?} --> {:?}", virt, phys);
+    }
+
     #[cfg(test)]
     test_main();
     os_practice::hlt_loop();
