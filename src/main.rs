@@ -9,8 +9,8 @@
 #![reexport_test_harness_main = "test_main"]
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
-use os_practice::{mem::get_top_pg_table, println};
-use x86_64::VirtAddr;
+use os_practice::println;
+use x86_64::{structures::paging::Translate, VirtAddr};
 
 // function called in the event of a panic
 /// return type = ! ("never" type) as it will just loop and never return
@@ -69,13 +69,7 @@ fn kern_main(boot_info: &'static BootInfo) -> ! {
 
     // accesses the level 4 page table and prints out used entries
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
-    let l4_table = unsafe { get_top_pg_table(phys_mem_offset) };
-
-    for (i, entry) in l4_table.iter().enumerate() {
-        if !entry.is_unused() {
-            println!("L4 Entry {}: {:?}", i, entry)
-        }
-    }
+    let mapper = unsafe { os_practice::mem::init(phys_mem_offset) };
 
     // example addresses for testing
     let addrs = [
@@ -92,11 +86,11 @@ fn kern_main(boot_info: &'static BootInfo) -> ! {
 
     for &addr in &addrs {
         let virt = VirtAddr::new(addr);
-        let phys = unsafe {
-            os_practice::mem::translate_addr(virt, VirtAddr::new(boot_info.physical_memory_offset))
-        };
+        let phys = mapper.translate_addr(virt);
         println!("{:?} --> {:?}", virt, phys);
     }
+
+    println!("Hello Kernel!");
 
     #[cfg(test)]
     test_main();

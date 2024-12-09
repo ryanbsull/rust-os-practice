@@ -1,11 +1,32 @@
-use x86_64::{structures::paging::PageTable, PhysAddr, VirtAddr};
+use x86_64::{
+    structures::paging::{OffsetPageTable, PageTable},
+    PhysAddr, VirtAddr,
+};
+
+// initialize a new OffsetPageTable
+// must be unsafe because the caller needs to guarantee that the complete
+// physical memory is mapped to virtual memory at the passed
+// `phys_mem_offset`. Also this should be called only once to avoid aliasing
+// `&mut` references (undefined)
+
+// return an OffsetPageTable since the bootloader just maps physical memory
+// to some virtual offset at phys_mem_offset. However, since OffsetPageTable
+// is just an implementation of the Mapper trait we could also use the other
+// types like MappedPageTable (all physical memory is mapped somewhere,
+// very flexible) or RecursivePageTable (can be used to access page table
+// frames through recursive page tables)
+pub unsafe fn init(phys_mem_offset: VirtAddr) -> OffsetPageTable<'static> {
+    let lvl4_table = get_top_pg_table(phys_mem_offset);
+    OffsetPageTable::new(lvl4_table, phys_mem_offset)
+}
 
 // returns a mutable reference to the active top level (level 4) table
 // fn needs to be unsafe b/c the caller needs to gurantee that the complete
 // physical memory is mapped to virtual memory at the passed phys_mem_offset
 // also make sure this fn is only called once to avoid aliasing `&mut`
 // references (*undefined behavior)
-pub unsafe fn get_top_pg_table(phys_mem_offset: VirtAddr) -> &'static mut PageTable {
+// only needs to be used by our init function
+unsafe fn get_top_pg_table(phys_mem_offset: VirtAddr) -> &'static mut PageTable {
     use x86_64::registers::control::Cr3;
 
     let (top_table_frame, _) = Cr3::read();
@@ -20,10 +41,15 @@ pub unsafe fn get_top_pg_table(phys_mem_offset: VirtAddr) -> &'static mut PageTa
 // make the public function unsafe so the kernel has to ensure validity of
 // memory being passed to it rather than having to waste cycles checking on
 // every memory access
+#[allow(dead_code)]
 pub unsafe fn translate_addr(addr: VirtAddr, phys_mem_offset: VirtAddr) -> Option<PhysAddr> {
     translate_addr_priv(addr, phys_mem_offset)
 }
 
+// adding in #[allow(dead_code)] since we will use the OffsetPageTable type
+// created in the init() function to handle translation as it has support
+// for huge frames and better error checking going forward
+#[allow(dead_code)]
 fn translate_addr_priv(addr: VirtAddr, phys_mem_offset: VirtAddr) -> Option<PhysAddr> {
     use x86_64::registers::control::Cr3;
     use x86_64::structures::paging::page_table::FrameError;
