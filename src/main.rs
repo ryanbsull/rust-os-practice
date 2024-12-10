@@ -10,7 +10,7 @@
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use os_practice::println;
-use x86_64::{structures::paging::Translate, VirtAddr};
+use x86_64::{structures::paging::Page, VirtAddr};
 
 // function called in the event of a panic
 /// return type = ! ("never" type) as it will just loop and never return
@@ -69,26 +69,20 @@ fn kern_main(boot_info: &'static BootInfo) -> ! {
 
     // accesses the level 4 page table and prints out used entries
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
-    let mapper = unsafe { os_practice::mem::init(phys_mem_offset) };
+    let mut mapper = unsafe { os_practice::mem::init(phys_mem_offset) };
+    let mut frame_alloc =
+        unsafe { os_practice::mem::BootInfoFrameAllocator::init(&boot_info.memory_map) };
 
-    // example addresses for testing
-    let addrs = [
-        // VGA buffer identity-mapped location
-        0xb8000,
-        // some code page
-        0x201010,
-        // some stack page
-        0x0100_0020_1a10,
-        // virtual address mapped to physical address 0
-        // should fail*
-        boot_info.physical_memory_offset,
-    ];
+    // with our page allocator we can allocate a new page for any address
+    // so long as it is available and our allocator will find it a usable
+    // frame to map to
+    let pg = Page::containing_address(VirtAddr::new(0xdeadbeaf));
+    os_practice::mem::create_example_mapping(pg, &mut mapper, &mut frame_alloc);
 
-    for &addr in &addrs {
-        let virt = VirtAddr::new(addr);
-        let phys = mapper.translate_addr(virt);
-        println!("{:?} --> {:?}", virt, phys);
-    }
+    // since we are mapping 0xb8000 (VGA Buffer) to frame 0x0 we can now
+    // write the string New! ti the screen with the new mapping
+    let pg_ptr: *mut u64 = pg.start_address().as_mut_ptr();
+    unsafe { pg_ptr.offset(400).write_volatile(0xF021F077F065F04E) };
 
     println!("Hello Kernel!");
 
