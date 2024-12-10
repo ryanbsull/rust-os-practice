@@ -1,8 +1,6 @@
 use bootloader::bootinfo::{MemoryMap, MemoryRegionType};
 use x86_64::{
-    structures::paging::{
-        FrameAllocator, Mapper, OffsetPageTable, Page, PageTable, PhysFrame, Size4KiB,
-    },
+    structures::paging::{FrameAllocator, OffsetPageTable, PageTable, PhysFrame, Size4KiB},
     PhysAddr, VirtAddr,
 };
 
@@ -107,28 +105,6 @@ unsafe fn get_top_pg_table(phys_mem_offset: VirtAddr) -> &'static mut PageTable 
     &mut *pg_table
 }
 
-// creates an example mapping to the given virtual page to the physical
-// frame 0xb8000 (VGA Buffer location)
-pub fn create_example_mapping(
-    pg: Page,
-    mapper: &mut OffsetPageTable,
-    frame_alloc: &mut impl FrameAllocator<Size4KiB>,
-) {
-    // import page table flags
-    use x86_64::structures::paging::PageTableFlags as Flags;
-
-    // set the physical frame where the memory address will
-    let frame = PhysFrame::containing_address(PhysAddr::new(0xb8000));
-    // set the location as in memory and writable
-    let flags = Flags::PRESENT | Flags::WRITABLE;
-
-    // extremely unsafe since it requires the caller make sure that the
-    // frame is not already in use rather than checking for itself
-    let map_to_result = unsafe { mapper.map_to(pg, frame, flags, frame_alloc) };
-
-    // flush the newly mapped page from the TLB
-    map_to_result.expect("mapping failed").flush();
-}
 // adding in #[allow(dead_code)] since we will use the OffsetPageTable type
 // created in the init() function to handle translation as it has support
 // for huge frames and better error checking going forward

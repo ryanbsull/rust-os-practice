@@ -10,7 +10,7 @@
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use os_practice::println;
-use x86_64::{structures::paging::Page, VirtAddr};
+use x86_64::VirtAddr;
 
 // function called in the event of a panic
 /// return type = ! ("never" type) as it will just loop and never return
@@ -69,20 +69,11 @@ fn kern_main(boot_info: &'static BootInfo) -> ! {
 
     // accesses the level 4 page table and prints out used entries
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
+    #[allow(unused_mut, unused_variables)]
     let mut mapper = unsafe { os_practice::mem::init(phys_mem_offset) };
+    #[allow(unused_mut, unused_variables)]
     let mut frame_alloc =
         unsafe { os_practice::mem::BootInfoFrameAllocator::init(&boot_info.memory_map) };
-
-    // with our page allocator we can allocate a new page for any address
-    // so long as it is available and our allocator will find it a usable
-    // frame to map to
-    let pg = Page::containing_address(VirtAddr::new(0xdeadbeaf));
-    os_practice::mem::create_example_mapping(pg, &mut mapper, &mut frame_alloc);
-
-    // since we are mapping 0xb8000 (VGA Buffer) to frame 0x0 we can now
-    // write the string New! ti the screen with the new mapping
-    let pg_ptr: *mut u64 = pg.start_address().as_mut_ptr();
-    unsafe { pg_ptr.offset(400).write_volatile(0xF021F077F065F04E) };
 
     println!("Hello Kernel!");
 
