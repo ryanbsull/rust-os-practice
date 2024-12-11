@@ -36,6 +36,9 @@ bit_field = "0.10.2"
 pic8259 = "0.10.1"
 # handle scancode translation for the keyboard handler
 pc-keyboard = "0.7.0"
+# will handle dynamic memory allocation before I am able to build a custom
+# allocator
+linked_list_allocator = "0.9.0"
 
 [dependencies.lazy_static]
 version = "1.0"

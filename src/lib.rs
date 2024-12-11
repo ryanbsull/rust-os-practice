@@ -7,10 +7,12 @@
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
+extern crate alloc;
 extern crate bit_field;
 use core::arch::asm;
 use core::panic::PanicInfo;
 pub mod gdt;
+pub mod heap;
 pub mod interrupts;
 pub mod mem;
 pub mod serial;

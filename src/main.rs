@@ -66,14 +66,12 @@ entry_point!(kern_main);
 
 fn kern_main(boot_info: &'static BootInfo) -> ! {
     os_practice::init();
-
-    // accesses the level 4 page table and prints out used entries
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
-    #[allow(unused_mut, unused_variables)]
     let mut mapper = unsafe { os_practice::mem::init(phys_mem_offset) };
-    #[allow(unused_mut, unused_variables)]
     let mut frame_alloc =
         unsafe { os_practice::mem::BootInfoFrameAllocator::init(&boot_info.memory_map) };
+    os_practice::heap::init_heap(&mut mapper, &mut frame_alloc)
+        .expect("Heap initialization failed");
 
     println!("Hello Kernel!");
 
