@@ -6,11 +6,35 @@ use x86_64::{
     },
     VirtAddr,
 };
-// temporary heap allocator
-use linked_list_allocator::LockedHeap;
+pub mod linked_list;
+use linked_list::LinkedListAlloc;
 
+// requires that `align` is some power of 2
+fn align_up(addr: usize, align: usize) -> usize {
+    (addr + align - 1) & !(align - 1)
+}
+
+pub struct Locked<T> {
+    inner: spin::Mutex<T>,
+}
+
+impl<T> Locked<T> {
+    pub const fn new(inner: T) -> Self {
+        Locked {
+            inner: spin::Mutex::new(inner),
+        }
+    }
+
+    pub fn lock(&self) -> spin::MutexGuard<T> {
+        self.inner.lock()
+    }
+}
+/*
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
+*/
+#[global_allocator]
+static ALLOCATOR: Locked<LinkedListAlloc> = Locked::new(LinkedListAlloc::new());
 
 pub const HEAP_START: usize = 0x_4444_4444_0000; // VirtAddr where heap starts
 pub const HEAP_SIZE: usize = 100 * 1024; // heap size in bytes = 1 MiB
