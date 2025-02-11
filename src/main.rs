@@ -9,7 +9,7 @@
 #![reexport_test_harness_main = "test_main"]
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
-use os_practice::println;
+use os_practice::{println, task::simple_exec::SimpleExec, task::Task};
 use x86_64::VirtAddr;
 
 // function called in the event of a panic
@@ -75,7 +75,20 @@ fn kern_main(boot_info: &'static BootInfo) -> ! {
 
     println!("Hello Kernel!");
 
+    let mut exec = SimpleExec::new();
+    exec.spawn(Task::new(example_task()));
+    exec.run();
+
     #[cfg(test)]
     test_main();
     os_practice::hlt_loop();
+}
+
+async fn async_num() -> u32 {
+    27
+}
+
+async fn example_task() {
+    let number = async_num().await;
+    println!("async num: {}", number);
 }
