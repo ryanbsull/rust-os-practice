@@ -16,6 +16,7 @@ pub mod heap;
 pub mod interrupts;
 pub mod mem;
 pub mod serial;
+pub mod task;
 pub mod vga_buf;
 
 /* EXCEPTION HANDLER TESTING FUNCTIONS */
