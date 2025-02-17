@@ -2,6 +2,7 @@ use alloc::boxed::Box;
 use core::task::{Context, Poll};
 use core::{future::Future, pin::Pin};
 
+pub mod keyboard;
 pub mod simple_exec;
 
 // type wrapper for a pinned, heap allocated, dynamically sized Future value for some Task t

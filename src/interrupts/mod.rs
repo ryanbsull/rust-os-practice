@@ -92,19 +92,7 @@ extern "C" fn timer_interrupt_handler(_stack_frame: &ExceptionStackFrame) {
 }
 
 extern "C" fn keyboard_interrupt_handler(_stack_frame: &ExceptionStackFrame) {
-    use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
-    use spin::Mutex;
     use x86_64::instructions::port::Port;
-
-    // setup a KEYBOARD global object to handle scancode translation
-    lazy_static! {
-        static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> =
-            Mutex::new(Keyboard::new(
-                ScancodeSet1::new(),
-                layouts::Us104Key,
-                HandleControl::Ignore
-            ));
-    }
 
     /*
         Setup a port to read the scancode sent by the keyboard
@@ -116,19 +104,11 @@ extern "C" fn keyboard_interrupt_handler(_stack_frame: &ExceptionStackFrame) {
           emulate that for now
             - The data port for the PS/2 controller is 0x60
     */
-    let mut keyboard = KEYBOARD.lock();
     let mut p = Port::new(0x60);
 
     // read, translate, and display the scancode received
     let scancode: u8 = unsafe { p.read() };
-    if let Ok(Some(key_press)) = keyboard.add_byte(scancode) {
-        if let Some(key) = keyboard.process_keyevent(key_press) {
-            match key {
-                DecodedKey::Unicode(character) => crate::print!("{character}"),
-                DecodedKey::RawKey(key) => crate::serial_print!("{:?}", key), // redirect output here to serial so it doesn't crowd the screen
-            }
-        }
-    }
+    crate::task::keyboard::add_scancode(scancode);
 
     unsafe {
         PICS.lock()

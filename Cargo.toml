@@ -45,6 +45,26 @@ version = "1.0"
 # requires "spin_no_std" since we don't link to the std lib
 features = ["spin_no_std"]
 
+# handles event queue for async tasks that use the scheduler
+[dependencies.crossbeam-queue]
+version = "0.3.11"
+default-features = false
+features = ["alloc"]
+
+# allows us to allocate static variables on the heap at run time
+# with the added benefit of not involving the interrupt handler like
+# lazy_static!() does, preventing the interrupt handler from allocating
+# to the heap
+[dependencies.conquer-once]
+version = "0.2.0"
+default-features = false
+
+# gives access to Stream type for use in the SCANCODE_QUEUE implementation
+[dependencies.futures-util]
+version = "0.3.4"
+default-features = false
+features = ["alloc"]
+
 # removes the testing harness for should_panic.rs as only a single test is run
 # it would be simpler then to just run our single test from should_panic's _start
 # function

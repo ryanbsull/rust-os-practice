@@ -9,7 +9,7 @@
 #![reexport_test_harness_main = "test_main"]
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
-use os_practice::{println, task::simple_exec::SimpleExec, task::Task};
+use os_practice::{println, task::{keyboard, simple_exec::SimpleExec, Task}};
 use x86_64::VirtAddr;
 
 // function called in the event of a panic
@@ -77,6 +77,7 @@ fn kern_main(boot_info: &'static BootInfo) -> ! {
 
     let mut exec = SimpleExec::new();
     exec.spawn(Task::new(example_task()));
+    exec.spawn(Task::new(keyboard::print_keypresses()));
     exec.run();
 
     #[cfg(test)]
