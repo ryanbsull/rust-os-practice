@@ -1,6 +1,6 @@
 use super::{Task, TaskId};
 use alloc::{collections::BTreeMap, sync::Arc};
-use core::task::Waker;
+use core::task::{Context, Waker};
 use crossbeam_queue::ArrayQueue;
 
 pub struct Exec {
@@ -24,5 +24,33 @@ impl Exec {
             panic!("Task with ID already in queue");
         }
         self.task_queue.push(task_id).expect("Warning: queue full");
+    }
+
+    fn run_ready_tasks(&mut self) {
+        let Self {
+            tasks,
+            task_queue,
+            waker_cache,
+        } = self;
+
+        while let Some(task_id) = task_queue.pop() {
+            let task = match tasks.get_mut(&task_id) {
+                Some(task) => task,
+                None => continue,
+            };
+            let waker = waker_cache
+                .entry(task_id)
+                // TODO: implement TaskWaker
+                .or_insert_with(|| TaskWaker::new(task_id, task_queue.clone()));
+            let mut context = Context::from_waker(waker);
+            match task.poll(&mut context) {
+                core::task::Poll::Ready(()) => {
+                    // task = finished --> remove task and waker
+                    tasks.remove(&task_id);
+                    waker_cache.remove(&task_id);
+                }
+                core::task::Poll::Pending => {}
+            }
+        }
     }
 }
