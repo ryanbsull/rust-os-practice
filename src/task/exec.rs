@@ -1,5 +1,5 @@
 use super::{Task, TaskId};
-use alloc::{collections::BTreeMap, sync::Arc};
+use alloc::{collections::BTreeMap, sync::Arc, task::Wake};
 use core::task::{Context, Waker};
 use crossbeam_queue::ArrayQueue;
 
@@ -7,6 +7,11 @@ pub struct Exec {
     tasks: BTreeMap<TaskId, Task>,
     task_queue: Arc<ArrayQueue<TaskId>>,
     waker_cache: BTreeMap<TaskId, Waker>,
+}
+
+struct TaskWaker {
+    task_id: TaskId,
+    task_queue: Arc<ArrayQueue<TaskId>>,
 }
 
 impl Exec {
@@ -52,5 +57,48 @@ impl Exec {
                 core::task::Poll::Pending => {}
             }
         }
+    }
+
+    pub fn run(&mut self) {
+        loop {
+            self.run_ready_tasks();
+            self.sleep_if_idle();
+        }
+    }
+
+    fn sleep_if_idle(&self) {
+        use x86_64::instructions::interrupts::{self, enable_and_hlt};
+
+        interrupts::disable();
+        if self.task_queue.is_empty() {
+            enable_and_hlt();
+        } else {
+            interrupts::enable();
+        }
+    }
+}
+
+impl Wake for TaskWaker {
+    fn wake(self: Arc<Self>) {
+        self.wake_task();
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        self.wake_task();
+    }
+}
+
+impl TaskWaker {
+    fn wake_task(&self) {
+        self.task_queue
+            .push(self.task_id)
+            .expect("ERROR: task_queue full");
+    }
+
+    fn new(task_id: TaskId, task_queue: Arc<ArrayQueue<TaskId>>) -> Waker {
+        Waker::from(Arc::new(TaskWaker {
+            task_id,
+            task_queue,
+        }))
     }
 }
